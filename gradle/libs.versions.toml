@@ -10,13 +10,15 @@ androidxTestRunner = "1.7.0"
 androidxTestEspresso = "3.7.0"
 coroutines = "1.10.2"
 junit = "4.13.2"
-kotlin = "2.3.20"
+kotlin = "2.0.21"
 nav3Core = "1.0.1"
 lifecycleViewmodelNav3 = "2.10.0"
 
 # Added for Supermarket Rating App
 room = "2.6.1"
 ksp = "2.0.21-1.0.27"
+
+
 coil = "2.7.0"
 camerax = "1.4.1"
 mlkitBarcode = "17.3.0"
