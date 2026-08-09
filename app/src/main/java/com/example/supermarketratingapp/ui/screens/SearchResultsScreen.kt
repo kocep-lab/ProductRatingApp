@@ -150,9 +150,18 @@ fun SearchResultsScreen(
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.padding(12.dp)
                                     ) {
+                                        if (!item.imageUrl.isNullOrBlank()) {
+                                            coil.compose.AsyncImage(
+                                                model = item.imageUrl,
+                                                contentDescription = item.name,
+                                                modifier = Modifier
+                                                    .size(64.dp)
+                                                    .padding(end = 12.dp)
+                                            )
+                                        }
+
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = item.name,
@@ -166,7 +175,23 @@ fun SearchResultsScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
+                                            if (!item.productSize.isNullOrBlank()) {
+                                                Text(
+                                                    text = item.productSize,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.outline
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                item.stores.take(3).forEach { storeName ->
+                                                    com.example.supermarketratingapp.ui.components.StoreBadge(storeName = storeName)
+                                                }
+                                            }
                                         }
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
                                         Button(
                                             onClick = { onImportDiscoverProduct(item) },
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -180,6 +205,7 @@ fun SearchResultsScreen(
                             }
                         }
                     }
+
                 }
             }
         }

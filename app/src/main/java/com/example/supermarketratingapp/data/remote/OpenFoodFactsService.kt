@@ -65,8 +65,9 @@ class OpenFoodFactsService {
 
     suspend fun searchProductsByName(query: String): List<RemoteProductResult> = withContext(Dispatchers.IO) {
         val results = mutableListOf<RemoteProductResult>()
+        val normalizedQuery = AuQueryNormalizer.normalizeQuery(query)
         try {
-            val url = "https://world.openfoodfacts.org/cgi/search.pl?search_terms=${query.trim()}&search_simple=1&action=process&json=1&page_size=20&country=australia"
+            val url = "https://world.openfoodfacts.org/cgi/search.pl?search_terms=${normalizedQuery}&search_simple=1&action=process&json=1&page_size=20&country=australia"
             val response: HttpResponse = client.get(url) {
                 header("User-Agent", "SupermarketRatingApp-Android/1.0 (Australia; kocep@example.com)")
             }
@@ -99,9 +100,21 @@ class OpenFoodFactsService {
             ?: product["image_url"]?.jsonPrimitive?.contentOrNull
 
         val storesStr = product["stores"]?.jsonPrimitive?.contentOrNull ?: ""
-        val stores = storesStr.split(",")
+        var stores = storesStr.split(",")
             .map { it.trim() }
             .filter { it.isNotBlank() }
+
+        if (stores.isEmpty()) {
+            val lowerBrand = brand?.lowercase() ?: ""
+            val lowerName = productName.lowercase()
+            stores = when {
+                lowerBrand.contains("woolworths") || lowerBrand.contains("macro") -> listOf("Woolworths")
+                lowerBrand.contains("coles") -> listOf("Coles")
+                lowerBrand.contains("aldi") -> listOf("Aldi")
+                else -> listOf("Woolworths", "Coles")
+            }
+        }
+
 
         // Nutriments
         val nutriments = product["nutriments"]?.jsonObject
