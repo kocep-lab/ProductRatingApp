@@ -58,7 +58,8 @@ fun HomeScreen(
         uiState.selectedStoreFilter,
         uiState.selectedCategoryFilter,
         uiState.minRatingFilter,
-        uiState.sortOption
+        uiState.sortOption,
+        uiState.groupByOption
     ) {
         uiState.products.filter { prod ->
             val matchesQuery = uiState.searchQuery.isBlank() ||
@@ -80,6 +81,44 @@ fun HomeScreen(
                 SortOption.RATING_LOW_HIGH -> list.sortedBy { it.userRating }
             }
         }
+    }
+
+    // Build grouped map for display
+    val groupedProducts: Map<String, List<ProductEntity>> = remember(filteredProducts, uiState.groupByOption, uiState.categories) {
+        when (uiState.groupByOption) {
+            GroupByOption.NONE -> mapOf("" to filteredProducts)
+            GroupByOption.CATEGORY -> filteredProducts.groupBy { prod ->
+                uiState.categories.find { it.id == prod.categoryId }?.name ?: "Uncategorized"
+            }
+            GroupByOption.STORE -> {
+                val result = mutableMapOf<String, MutableList<ProductEntity>>()
+                filteredProducts.forEach { prod ->
+                    if (prod.availableStores.isEmpty()) {
+                        result.getOrPut("No Store") { mutableListOf() }.add(prod)
+                    } else {
+                        prod.availableStores.forEach { store ->
+                            result.getOrPut(store) { mutableListOf() }.add(prod)
+                        }
+                    }
+                }
+                result
+            }
+            GroupByOption.RATING -> filteredProducts.groupBy { prod ->
+                when {
+                    prod.userRating >= 4.5f -> "★★★★★ (4.5+)"
+                    prod.userRating >= 3.5f -> "★★★★ (3.5+)"
+                    prod.userRating >= 2.5f -> "★★★ (2.5+)"
+                    prod.userRating >= 1.5f -> "★★ (1.5+)"
+                    prod.userRating >= 0.5f -> "★ (0.5+)"
+                    else -> "No Rating"
+                }
+            }
+        }
+    }
+
+    // Active filter count for badge
+    val activeFilterCount = remember(uiState.selectedStoreFilter, uiState.selectedCategoryFilter) {
+        listOfNotNull(uiState.selectedStoreFilter, uiState.selectedCategoryFilter).size
     }
 
     Scaffold(
@@ -129,9 +168,11 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     FilterChip(
-                        selected = uiState.selectedStoreFilter != null || uiState.selectedCategoryFilter != null,
+                        selected = activeFilterCount > 0,
                         onClick = { showFilterSheet = true },
-                        label = { Text("Filters") },
+                        label = {
+                            Text(if (activeFilterCount > 0) "Filters ($activeFilterCount)" else "Filters")
+                        },
                         leadingIcon = { Icon(Icons.Outlined.FilterList, contentDescription = null) }
                     )
 
@@ -140,7 +181,7 @@ fun HomeScreen(
                         FilterChip(
                             selected = uiState.sortOption != SortOption.RECENTLY_UPDATED,
                             onClick = { showSortMenu = true },
-                            label = { Text("Sort") },
+                            label = { Text(uiState.sortOption.label) },
                             leadingIcon = { Icon(Icons.Outlined.Sort, contentDescription = null) }
                         )
                         DropdownMenu(
@@ -149,7 +190,17 @@ fun HomeScreen(
                         ) {
                             SortOption.values().forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option.label) },
+                                    text = {
+                                        Text(
+                                            text = option.label,
+                                            fontWeight = if (option == uiState.sortOption) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        if (option == uiState.sortOption) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    },
                                     onClick = {
                                         onSortOptionSelected(option)
                                         showSortMenu = false
@@ -172,7 +223,17 @@ fun HomeScreen(
                         ) {
                             GroupByOption.values().forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option.label) },
+                                    text = {
+                                        Text(
+                                            text = option.label,
+                                            fontWeight = if (option == uiState.groupByOption) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        if (option == uiState.groupByOption) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    },
                                     onClick = {
                                         onGroupByOptionSelected(option)
                                         showGroupMenu = false
@@ -201,8 +262,7 @@ fun HomeScreen(
                 onSearchClicked = { onAddProductClick(2) },
                 modifier = Modifier.padding(innerPadding)
             )
-        }
- else {
+        } else {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -211,17 +271,78 @@ fun HomeScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp)
             ) {
-                items(filteredProducts, key = { it.id }) { product ->
-                    val category = uiState.categories.find { it.id == product.categoryId }
-                    CompactProductCard(
-                        product = product,
-                        category = category,
-                        onClick = { onProductClick(product.id) },
-                        onDeleteClick = { productToDelete = product }
-                    )
+                if (filteredProducts.isEmpty()) {
+                    item {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.SearchOff,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "No products match your filters",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(onClick = {
+                                    onStoreFilterSelected(null)
+                                    onCategoryFilterSelected(null)
+                                    onSearchQueryChanged("")
+                                }) {
+                                    Text("Clear All Filters")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    groupedProducts.forEach { (groupName, products) ->
+                        // Show group header only when grouping is active
+                        if (uiState.groupByOption != GroupByOption.NONE) {
+                            item(key = "header_$groupName") {
+                                Text(
+                                    text = groupName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+
+                        items(products, key = { it.id }) { product ->
+                            val category = uiState.categories.find { it.id == product.categoryId }
+                            CompactProductCard(
+                                product = product,
+                                category = category,
+                                onClick = { onProductClick(product.id) },
+                                onDeleteClick = { productToDelete = product }
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // Filter Bottom Sheet
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            categories = uiState.categories,
+            selectedStoreFilter = uiState.selectedStoreFilter,
+            selectedCategoryFilter = uiState.selectedCategoryFilter,
+            onStoreFilterSelected = onStoreFilterSelected,
+            onCategoryFilterSelected = onCategoryFilterSelected,
+            onDismiss = { showFilterSheet = false }
+        )
     }
 
     // Delete Confirmation Dialog
@@ -249,6 +370,111 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterBottomSheet(
+    categories: List<CategoryEntity>,
+    selectedStoreFilter: String?,
+    selectedCategoryFilter: Long?,
+    onStoreFilterSelected: (String?) -> Unit,
+    onCategoryFilterSelected: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val stores = listOf("Woolworths", "Coles", "Aldi", "Tong Li", "IGA", "Asian Grocer")
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Filter Products",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = {
+                    onStoreFilterSelected(null)
+                    onCategoryFilterSelected(null)
+                }) {
+                    Text("Clear All")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Store Filter
+            Text(
+                text = "By Store",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                stores.forEach { store ->
+                    FilterChip(
+                        selected = selectedStoreFilter == store,
+                        onClick = {
+                            onStoreFilterSelected(if (selectedStoreFilter == store) null else store)
+                        },
+                        label = { Text(store) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Category Filter
+            Text(
+                text = "By Category",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                categories.forEach { category ->
+                    FilterChip(
+                        selected = selectedCategoryFilter == category.id,
+                        onClick = {
+                            onCategoryFilterSelected(if (selectedCategoryFilter == category.id) null else category.id)
+                        },
+                        label = { Text(category.name) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Apply Filters")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CompactProductCard(
     product: ProductEntity,
