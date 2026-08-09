@@ -64,7 +64,7 @@ fun MainNavigation(viewModel: MainViewModel = viewModel()) {
                         categories = uiState.categories,
                         onSaveProduct = { viewModel.saveProduct(it) },
                         onDeleteProduct = { viewModel.deleteProduct(it) },
-                        onAddCategoryClick = { viewModel.addCategory("New Category") },
+                        onAddCategoryClick = { name -> viewModel.addCategory(name) },
                         onBackClick = { backStack.removeLastOrNull() },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -102,6 +102,7 @@ fun MainNavigation(viewModel: MainViewModel = viewModel()) {
                 SettingsScreen(
                     categories = uiState.categories,
                     onAddCategory = { name -> viewModel.addCategory(name) },
+                    onUpdateCategory = { category, newName -> viewModel.updateCategory(category, newName) },
                     onDeleteCategory = { category -> viewModel.deleteCategory(category) },
                     onExportBackup = { callback -> viewModel.exportBackup(callback) },
                     onImportBackup = { json -> viewModel.importBackup(json) },
@@ -109,6 +110,7 @@ fun MainNavigation(viewModel: MainViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize()
                 )
             }
+
         }
     )
 

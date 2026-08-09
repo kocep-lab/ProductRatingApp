@@ -80,10 +80,11 @@ fun AddProductSheet(
             when (selectedTab) {
                 0 -> {
                     // Scan Barcode View
-                    Box(
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp)
+                            .height(250.dp)
                             .padding(horizontal = 16.dp)
                     ) {
                         BarcodeScannerView(
@@ -99,9 +100,10 @@ fun AddProductSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .padding(top = 12.dp)
+                            .padding(top = 10.dp)
                     )
                 }
+
 
                 1 -> {
                     // Paste Link View

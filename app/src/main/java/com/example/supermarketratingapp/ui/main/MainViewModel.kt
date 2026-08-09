@@ -244,12 +244,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
+    fun updateCategory(category: CategoryEntity, newName: String) {
+        viewModelScope.launch {
+            val updated = category.copy(name = newName)
+            repository.saveCategory(updated)
+            _uiState.update { it.copy(toastMessage = "Category updated to '$newName'") }
+        }
+    }
+
     fun deleteCategory(category: CategoryEntity) {
         viewModelScope.launch {
             repository.deleteCategory(category)
             _uiState.update { it.copy(toastMessage = "Category '${category.name}' deleted") }
         }
     }
+
 
     // Backup & Export
     fun exportBackup(onFileReady: (java.io.File) -> Unit) {

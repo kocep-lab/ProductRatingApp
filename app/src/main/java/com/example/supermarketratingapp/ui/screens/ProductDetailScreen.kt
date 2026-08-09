@@ -29,7 +29,7 @@ fun ProductDetailScreen(
     categories: List<CategoryEntity>,
     onSaveProduct: (ProductEntity) -> Unit,
     onDeleteProduct: (ProductEntity) -> Unit,
-    onAddCategoryClick: () -> Unit,
+    onAddCategoryClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -45,8 +45,11 @@ fun ProductDetailScreen(
     var newTagInput by remember { mutableStateOf("") }
     var newStoreInput by remember { mutableStateOf("") }
     var showAddStoreDialog by remember { mutableStateOf(false) }
+    var showAddCategoryPromptDialog by remember { mutableStateOf(false) }
+    var newCategoryInput by remember { mutableStateOf("") }
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
 
     val allSupermarkets = remember { listOf("Woolworths", "Coles", "Aldi", "Tong Li", "IGA", "Asian Grocer") }
 
@@ -259,10 +262,45 @@ fun ProductDetailScreen(
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = onAddCategoryClick) {
+                IconButton(onClick = { showAddCategoryPromptDialog = true }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Category")
                 }
             }
+
+            if (showAddCategoryPromptDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddCategoryPromptDialog = false },
+                    title = { Text("Add New Category") },
+                    text = {
+                        OutlinedTextField(
+                            value = newCategoryInput,
+                            onValueChange = { newCategoryInput = it },
+                            label = { Text("Category Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (newCategoryInput.isNotBlank()) {
+                                    onAddCategoryClick(newCategoryInput.trim())
+                                    newCategoryInput = ""
+                                    showAddCategoryPromptDialog = false
+                                }
+                            }
+                        ) {
+                            Text("Add")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAddCategoryPromptDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 

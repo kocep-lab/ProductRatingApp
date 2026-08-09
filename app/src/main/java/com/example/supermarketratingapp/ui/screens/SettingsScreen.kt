@@ -28,12 +28,14 @@ import com.example.supermarketratingapp.data.local.CategoryEntity
 fun SettingsScreen(
     categories: List<CategoryEntity>,
     onAddCategory: (String) -> Unit,
+    onUpdateCategory: (CategoryEntity, String) -> Unit,
     onDeleteCategory: (CategoryEntity) -> Unit,
     onExportBackup: ((java.io.File) -> Unit) -> Unit,
     onImportBackup: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     val context = LocalContext.current
     var showCategoryDialog by remember { mutableStateOf(false) }
 
@@ -158,8 +160,10 @@ fun SettingsScreen(
         CategoryManagerDialog(
             categories = categories,
             onAddCategory = onAddCategory,
+            onUpdateCategory = onUpdateCategory,
             onDeleteCategory = onDeleteCategory,
             onDismiss = { showCategoryDialog = false }
         )
     }
+
 }
