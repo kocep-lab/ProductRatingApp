@@ -38,6 +38,18 @@ fun BarcodeScannerView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var cameraProviderRef by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        onDispose {
+            try {
+                cameraProviderRef?.unbindAll()
+            } catch (e: Exception) {
+                Log.e("BarcodeScannerView", "Error unbinding camera on dispose", e)
+            }
+        }
+    }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -101,42 +113,44 @@ fun BarcodeScannerView(
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                     cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
+                        try {
+                            val cameraProvider = cameraProviderFuture.get()
+                            cameraProviderRef = cameraProvider
 
-                        val barcodeScanner = BarcodeScanning.getClient()
-                        val imageAnalysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
+                            val preview = Preview.Builder().build().also {
+                                it.setSurfaceProvider(previewView.surfaceProvider)
+                            }
 
-                        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
-                            val mediaImage = imageProxy.image
-                            if (mediaImage != null && !isDetected) {
-                                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                                barcodeScanner.process(image)
-                                    .addOnSuccessListener { barcodes ->
-                                        for (barcode in barcodes) {
-                                            val rawValue = barcode.rawValue
-                                            if (!rawValue.isNullOrBlank() && !isDetected) {
-                                                isDetected = true
-                                                onBarcodeDetected(rawValue)
-                                                break
+                            val barcodeScanner = BarcodeScanning.getClient()
+                            val imageAnalysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
+
+                            imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
+                                val mediaImage = imageProxy.image
+                                if (mediaImage != null && !isDetected) {
+                                    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                                    barcodeScanner.process(image)
+                                        .addOnSuccessListener { barcodes ->
+                                            for (barcode in barcodes) {
+                                                val rawValue = barcode.rawValue
+                                                if (!rawValue.isNullOrBlank() && !isDetected) {
+                                                    isDetected = true
+                                                    onBarcodeDetected(rawValue)
+                                                    break
+                                                }
                                             }
                                         }
-                                    }
-                                    .addOnCompleteListener {
-                                        imageProxy.close()
-                                    }
-                            } else {
-                                imageProxy.close()
+                                        .addOnCompleteListener {
+                                            imageProxy.close()
+                                        }
+                                } else {
+                                    imageProxy.close()
+                                }
                             }
-                        }
 
-                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                        try {
                             cameraProvider.unbindAll()
                             camera = cameraProvider.bindToLifecycle(
                                 lifecycleOwner,

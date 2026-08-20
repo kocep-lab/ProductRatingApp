@@ -21,9 +21,13 @@ class ProductRepository(
     val allProducts: Flow<List<ProductEntity>> = productDao.getAllProducts()
     val allCategories: Flow<List<CategoryEntity>> = categoryDao.getAllCategories()
 
-    suspend fun getProductById(id: Long): ProductEntity? = productDao.getProductById(id)
+    suspend fun getProductById(id: Long): ProductEntity? = withContext(Dispatchers.IO) {
+        productDao.getProductById(id)
+    }
 
-    suspend fun getProductByBarcode(barcode: String): ProductEntity? = productDao.getProductByBarcode(barcode)
+    suspend fun getProductByBarcode(barcode: String): ProductEntity? = withContext(Dispatchers.IO) {
+        productDao.getProductByBarcode(barcode)
+    }
 
     fun searchSavedProducts(query: String): Flow<List<ProductEntity>> = productDao.searchProducts(query)
 
@@ -41,7 +45,6 @@ class ProductRepository(
         val existing = if (!product.barcode.isNullOrEmpty()) {
             productDao.getProductByBarcode(product.barcode!!)
         } else null
-
 
         val toSave = if (existing != null) {
             product.copy(id = existing.id, updatedAt = System.currentTimeMillis())
@@ -82,7 +85,6 @@ class ProductRepository(
 
     // JSON Export / Import
     suspend fun exportDataToJson(context: Context): File = withContext(Dispatchers.IO) {
-        // Collect current snapshot
         val products = mutableListOf<ProductEntity>()
         productDao.getAllProducts().collect { list ->
             products.addAll(list)
@@ -105,4 +107,3 @@ class ProductRepository(
         count
     }
 }
-
